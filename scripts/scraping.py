@@ -1,4 +1,7 @@
 import scrapy
+import sys
+import os
+
 from scrapy.crawler import CrawlerProcess
 from pymongo import MongoClient
 

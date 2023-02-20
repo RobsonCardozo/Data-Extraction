@@ -1,6 +1,9 @@
+import sys
+import os
+
 from flask import Flask, render_template
 from pymongo import MongoClient
-from scraping import run_spider
+from scripts.scraping import run_spider
 
 app = Flask(__name__)
 
