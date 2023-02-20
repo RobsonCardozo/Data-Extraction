@@ -9,7 +9,7 @@ def index():
     db = client['mercado_livre']
     collection = db['produtos']
     results = []
-    for item in collection.find():
+    for item in collection.find().limit(10):
         results.append({
             'produto': item['produto'],
             'preco': item['preco']
