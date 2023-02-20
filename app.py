@@ -20,4 +20,4 @@ def index():
 
 if __name__ == '__main__':
     run_spider()
-    app.run(debug=True)
+    app.run()
