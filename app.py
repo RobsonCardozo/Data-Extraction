@@ -1,5 +1,6 @@
 from flask import Flask, render_template
 from pymongo import MongoClient
+from scraping import run_spider
 
 app = Flask(__name__)
 
@@ -15,6 +16,17 @@ def index():
             'preco': item['preco']
         })
     return render_template('index.html', results=results)
+
+client = MongoClient('localhost', 27017)
+db = client['mercadolivre']
+collection = db['produtos']
+
+results = []
+for item in collection.find():
+    results.append({
+        'produto': item['produto'],
+        'preco': item['preco']
+    })
 
 if __name__ == '__main__':
     app.run(debug=True)
