@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Preços do Mercado Livre</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+    <header class="header">
+      <h1>Preços do Mercado Livre</h1>
+    </header>
+    <main class="main">
+      <table>
+        <thead>
+          <tr>
+            <th>Produto</th>
+            <th>Preço</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for result in results %}
+          <tr>
+            <td>{{ result['produto'] }}</td>
+            <td>{{ result['preco'] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </main>
+    <footer class="footer">
+      <p>&copy; 2023 Preços do Mercado Livre</p>
+    </footer>
+  </body>
+</html>
