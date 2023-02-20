@@ -1,3 +1,5 @@
+import os
+import sys
 from distutils import debug
 from scripts.scraping import run_spider
 from flask import Flask, render_template, send_from_directory

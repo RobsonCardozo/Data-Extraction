@@ -14,7 +14,6 @@
           <tr>
             <th>Título</th>
             <th>Resumo</th>
-            <th>Texto Completo</th>
             <th>Link</th>
           </tr>
         </thead>
@@ -23,7 +22,6 @@
           <tr>
             <td>{{ result['title'] }}</td>
             <td>{{ result['summary'] }}</td>
-            <td>{{ result['full_summary'] }}</td>
             <td><a href="{{ result['url'] }}" target="_blank">{{ result['url'] }}</a></td>
           </tr>
           {% endfor %}
