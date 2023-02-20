@@ -45,5 +45,10 @@ class WikipediaSpider(scrapy.Spider):
             'url': url
         })
 
+def run_spider():
+    process = CrawlerProcess()
+    process.crawl(WikipediaSpider)
+    process.start()
+
 if __name__ == "__main__":
     run_spider()

@@ -6,21 +6,25 @@
   </head>
   <body>
     <header class="header">
-      <h1>Preços do Mercado Livre:</h1>
+      <h1>Wikipedia:</h1>
     </header>
     <main class="main">
       <table>
         <thead>
           <tr>
-            <th>Produto</th>
-            <th>Preço</th>
+            <th>Título</th>
+            <th>Resumo</th>
+            <th>Texto Completo</th>
+            <th>Link</th>
           </tr>
         </thead>
         <tbody>
           {% for result in results %}
           <tr>
-            <td>{{ result['produto'] }}</td>
-            <td>{{ result['preco'] }}</td>
+            <td>{{ result['title'] }}</td>
+            <td>{{ result['summary'] }}</td>
+            <td>{{ result['full_summary'] }}</td>
+            <td><a href="{{ result['url'] }}" target="_blank">{{ result['url'] }}</a></td>
           </tr>
           {% endfor %}
         </tbody>
