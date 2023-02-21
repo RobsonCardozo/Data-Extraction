@@ -2,9 +2,11 @@ import os
 import requests
 from flask import Flask, render_template, send_from_directory, redirect, url_for, request
 from pymongo import MongoClient
+import json
 import scrapy
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
+
 
 class WikipediaSpider(scrapy.Spider):
     name = "wikipedia"
@@ -15,9 +17,6 @@ class WikipediaSpider(scrapy.Spider):
         super().__init__(*args, **kwargs)
         self.query = query
         self.records = []
-        self.client = MongoClient('mongodb://localhost:27017/')
-        self.db = self.client['wikipedia']
-        self.collection = self.db['baseconhecimento']
 
     def parse(self, response):
         title = response.css("h1#firstHeading::text").get().strip()
@@ -49,9 +48,10 @@ class WikipediaSpider(scrapy.Spider):
         self.records.append(record)
 
     def closed(self, reason):
-        if self.records:
-            self.collection.insert_many(self.records)  # insert any remaining records
-        self.client.close()  # close the MongoDB client connection
+        filename = f"{self.query}.json"
+        with open(os.path.join("data", filename), "w") as file:
+            json.dump(self.records, file)
+
 
 app = Flask(__name__)
 
@@ -60,21 +60,11 @@ app = Flask(__name__)
 def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
+
 @app.route('/')
 def index():
-    client = MongoClient('mongodb://localhost:27017/')
-    db = client['wikipedia']
-    collection = db['baseconhecimento']
+    return render_template('index.html', results=[])
 
-    results = []
-    for item in collection.find():
-        results.append({
-            'title': item['title'],
-            'summary': item['summary'],
-            'url': item['url']
-        })
-    client.close()
-    return render_template('index.html', results=results)
 
 @app.route('/search')
 def search():
@@ -87,16 +77,13 @@ def search():
     process.crawl(spider)
     process.start()
 
-    # Retrieve the search results from MongoDB
-    client = MongoClient('mongodb://localhost:27017/')
-    db = client['wikipedia']
-    collection = db['baseconhecimento']
-
-    results = collection.find({'query': query})
+    # Retrieve the search results from the file saved by the spider
+    filename = f"{query}.json"
+    with open(os.path.join("data", filename), "r") as file:
+        search_results = json.load(file)
 
     formatted_results = []
-
-    for result in results:
+    for result in search_results:
         formatted_result = {
             'title': result['title'],
             'summary': result['summary'],
@@ -104,9 +91,8 @@ def search():
         }
         formatted_results.append(formatted_result)
 
-    client.close()
-
     return render_template('index.html', results=formatted_results)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
