@@ -1,12 +1,16 @@
-BOT_NAME = 'wikipedia_spider'
+BOT_NAME = 'wikipedia_scraper'
 
-SPIDER_MODULES = ['wikipedia_spider.spiders']
-NEWSPIDER_MODULE = 'wikipedia_spider.spiders'
+SPIDER_MODULES = ['wikipedia_scraper.spiders']
+NEWSPIDER_MODULE = 'wikipedia_scraper.spiders'
 
 ROBOTSTXT_OBEY = True
-CONCURRENT_REQUESTS = 32
-DOWNLOAD_DELAY = 2
 
 ITEM_PIPELINES = {
-    'wikipedia_spider.pipelines.WikipediaSpiderPipeline': 300,
+    'wikipedia_scraper.pipelines.WikipediaSpiderPipeline': 300,
 }
+
+MONGODB_URI = "mongodb://localhost:27017/"
+MONGODB_DATABASE = "wikipedia_db"
+MONGODB_COLLECTION = "wikipedia_pages"
+
+DOWNLOAD_DELAY = 1

@@ -1,53 +1,77 @@
 import os
-import json
 import requests
-
-from flask import Flask, render_template, send_from_directory, redirect, url_for, request
-from scrapy.crawler import CrawlerProcess
-from scrapy.utils.project import get_project_settings
+import json
+from flask import (
+    Flask,
+    render_template,
+    send_from_directory,
+    redirect,
+    url_for,
+    request,
+)
 from pymongo import MongoClient
 import scrapy
+from scrapy.crawler import CrawlerProcess
+from scrapy.utils.project import get_project_settings
 
+# Define o pipeline do scrapy para salvar em JSON
+class WikipediaSpiderPipeline:
+    def open_spider(self, spider):
+        self.records = []
 
+    def close_spider(self, spider):
+        file_path = os.path.join(os.getcwd(), "data", f"{spider.query}.json")
+        with open(file_path, "w") as f:
+            json.dump(self.records, f)
+
+    def process_item(self, item, spider):
+        self.records.append(dict(item))
+        return item
+
+# Define o spider do scrapy para extrair informações da Wikipedia
 class WikipediaSpider(scrapy.Spider):
     name = "wikipedia"
     allowed_domains = ["en.wikipedia.org"]
     start_urls = ["https://en.wikipedia.org/wiki/Main_Page"]
 
+    custom_settings = {
+        "ITEM_PIPELINES": {
+            "app.WikipediaSpiderPipeline": 300,
+        }
+    }
+
     def __init__(self, query=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.query = query
-        self.records = []
 
     def parse(self, response):
         title = response.css("h1#firstHeading::text").get().strip()
         summary = response.css("div#mw-content-text p::text").get().strip()
 
-        # Query Wikipedia API for additional information about the title
-        api_url = "https://en.wikipedia.org/w/api.php"
-        params = {
-            "action": "query",
-            "format": "json",
-            "prop": "extracts|info",
-            "titles": title,
-            "exsentences": 2,
-            "explaintext": True,
-            "inprop": "url",
-        }
-        api_response = requests.get(api_url, params=params).json()
+        # Consulta a API da Wikipedia para obter informações adicionais sobre o título
+        api_response = requests.get(
+            "https://en.wikipedia.org/w/api.php",
+            params={
+                "action": "query",
+                "format": "json",
+                "prop": "extracts|info",
+                "titles": title,
+                "exsentences": 2,
+                "explaintext": True,
+                "inprop": "url",
+            },
+        ).json()
 
         page = next(iter(api_response["query"]["pages"].values()))
         url = page["fullurl"]
 
-        record = {"title": title, "summary": summary, "url": url, "query": self.query}
-        self.records.append(record)
-
-    def closed(self, reason):
-        # Save results to a JSON file
-        file_path = os.path.join(os.getcwd(), "data", f"{self.query}.json")
-        with open(file_path, "w") as f:
-            json.dump(self.records, f)
-
+        item = {
+            "title": title,
+            "summary": summary,
+            "url": url,
+            "query": self.query,
+        }
+        yield item
 
 app = Flask(__name__)
 
@@ -70,24 +94,41 @@ def search():
     if not query:
         return redirect(url_for("index"))
 
-    # Run the spider to fetch data
-    spider = WikipediaSpider(query=query)
+    # Executa o spider para buscar os dados
     process = CrawlerProcess(get_project_settings())
+    spider = WikipediaSpider(query=query)
     process.crawl(spider)
     process.start()
 
-    # Redirect to the results page
+    # Obtém os resultados do spider e salva no MongoDB
+    client = MongoClient("mongodb://localhost:27017/")
+    db = client["wikipedia"]
+    collection = db["pages"]
+
+    for record in spider.records:
+        collection.insert_one(record)
+
+    # Redireciona para a página de resultados
     return redirect(url_for("show_results", query=query))
 
-@app.route("/results/<query>")
-def show_results(query):
-    # Load results from the JSON file
+@app.route("/results")
+def show_results():
+    query = request.args.get("query")
+    if not query:
+        return redirect(url_for("index"))
+
+    # Obtém os resultados salvos pelo spider
     file_path = os.path.join(os.getcwd(), "data", f"{query}.json")
     with open(file_path, "r") as f:
-        records = json.load(f)
+        results = json.load(f)
 
-    return render_template("results.html", records=records)
+    # Salva os resultados no MongoDB
+    client = MongoClient(os.environ.get("MONGODB_URI"))
+    db = client[os.environ.get("MONGODB_DATABASE")]
+    collection = db[os.environ.get("MONGODB_COLLECTION")]
+    collection.insert_many(results)
 
+    return render_template("results.html", query=query, results=results)
 
 if __name__ == "__main__":
     app.run(debug=True)
