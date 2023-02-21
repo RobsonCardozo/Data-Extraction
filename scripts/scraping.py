@@ -41,7 +41,6 @@ class WikipediaSpider(scrapy.Spider):
         collection.insert_one({
             'title': title,
             'summary': summary,
-            'full_summary': full_summary,
             'url': url
         })
 

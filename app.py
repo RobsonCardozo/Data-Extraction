@@ -17,7 +17,7 @@ def index():
     db = client['wikipedia']
     collection = db['baseconhecimento']
     results = []
-    for item in collection.find().limit(10):
+    for item in collection.find():
         results.append({
             'title': item['title'],
             'summary': item['summary'],
