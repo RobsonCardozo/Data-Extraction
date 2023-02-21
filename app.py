@@ -49,11 +49,13 @@ class WikipediaSpider(scrapy.Spider):
         record = {"title": title, "summary": summary, "url": url, "query": self.query}
         self.records.append(record)
 
-    def closed(self, reason):
         # Salva os resultados em um arquivo JSON
-        with open("data/{}.json".format(self.query), "w") as f:
+        file_path = os.path.join(os.getcwd(), "data", f"{self.query}.json")
+        with open(file_path, "w") as f:
             json.dump(self.records, f)
 
+    def closed(self, reason):
+        pass
 
 app = Flask(__name__)
 
@@ -86,27 +88,6 @@ def search():
 
     # Redireciona para a página de resultados
     return redirect(url_for("show_results", query=query))
-
-
-@app.route("/results/<query>")
-def show_results(query):
-    # Carrega os dados do arquivo JSON
-    file_path = f"data/{query}.json"
-    with open(file_path, "r", encoding="utf-8") as f:
-        search_results = json.load(f)
-
-    # Formata os resultados para exibição na página
-    formatted_results = []
-    for result in search_results:
-        formatted_result = {
-            "title": result["title"],
-            "summary": result["summary"],
-            "url": result["url"],
-        }
-        formatted_results.append(formatted_result)
-
-    return render_template("results.html", query=query, results=formatted_results)
-
 
 if __name__ == "__main__":
     app.run(debug=True)
