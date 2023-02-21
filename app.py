@@ -1,5 +1,4 @@
 import os
-import sys
 import requests
 from flask import Flask, render_template, send_from_directory, redirect, url_for, request
 from pymongo import MongoClient
@@ -16,13 +15,16 @@ class WikipediaSpider(scrapy.Spider):
         super().__init__(*args, **kwargs)
         self.query = query
         self.records = []
+        self.client = MongoClient('mongodb://localhost:27017/')
+        self.db = self.client['wikipedia']
+        self.collection = self.db['baseconhecimento']
 
     def parse(self, response):
         title = response.css("h1#firstHeading::text").get().strip()
         summary = response.css("div#mw-content-text p::text").get().strip()
 
         # Consulta a API da Wikipedia para obter informações adicionais sobre o título
-        response = requests.get(
+        api_response = requests.get(
             "https://en.wikipedia.org/w/api.php",
             params={
                 "action": "query",
@@ -35,7 +37,7 @@ class WikipediaSpider(scrapy.Spider):
             }
         ).json()
 
-        page = next(iter(response["query"]["pages"].values()))
+        page = next(iter(api_response["query"]["pages"].values()))
         url = page["fullurl"]
 
         record = {
@@ -48,19 +50,10 @@ class WikipediaSpider(scrapy.Spider):
 
     def closed(self, reason):
         if self.records:
-            collection.insert_many(self.records)  # insert any remaining records
+            self.collection.insert_many(self.records)  # insert any remaining records
         self.client.close()  # close the MongoDB client connection
 
 app = Flask(__name__)
-
-# MongoDB connection
-MONGO_URI = 'mongodb://localhost:27017/'
-MONGO_DATABASE = 'wikipedia'
-MONGO_COLLECTION = 'baseconhecimento'
-
-client = MongoClient(MONGO_URI)
-db = client[MONGO_DATABASE]
-collection = db[MONGO_COLLECTION]
 
 # Flask app routes
 @app.route('/favicon.ico')
@@ -69,6 +62,10 @@ def favicon():
 
 @app.route('/')
 def index():
+    client = MongoClient('mongodb://localhost:27017/')
+    db = client['wikipedia']
+    collection = db['baseconhecimento']
+
     results = []
     for item in collection.find():
         results.append({
@@ -76,6 +73,7 @@ def index():
             'summary': item['summary'],
             'url': item['url']
         })
+    client.close()
     return render_template('index.html', results=results)
 
 @app.route('/search')
@@ -90,9 +88,25 @@ def search():
     process.start()
 
     # Retrieve the search results from MongoDB
+    client = MongoClient('mongodb://localhost:27017/')
+    db = client['wikipedia']
+    collection = db['baseconhecimento']
+
     results = collection.find({'query': query})
 
-    return render_template('index.html', results=results)
+    formatted_results = []
+
+    for result in results:
+        formatted_result = {
+            'title': result['title'],
+            'summary': result['summary'],
+            'url': result['url']
+        }
+        formatted_results.append(formatted_result)
+
+    client.close()
+
+    return render_template('index.html', results=formatted_results)
 
 if __name__ == '__main__':
     app.run(debug=True)
