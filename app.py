@@ -17,7 +17,7 @@ from pymongo import MongoClient
 import scrapy
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
-from pipelines import WikipediaSpiderPipeline
+from scrapy import cmdline
 
 # Define o pipeline do scrapy para salvar em JSON
 class WikipediaSpiderPipeline:
@@ -41,7 +41,7 @@ class WikipediaSpider(scrapy.Spider):
 
     custom_settings = {
         "ITEM_PIPELINES": {
-            "app.WikipediaSpiderPipeline": 300,
+            "WikipediaSpiderPipeline": 300,
         }
     }
 
@@ -110,11 +110,13 @@ def search():
     db = client["wikipedia"]
     collection = db["pages"]
 
+    results = []
     for record in spider.records:
+        results.append(record)
         collection.insert_one(record)
 
     # Redireciona para a página de resultados
-    return redirect(url_for("show_results", query=query))
+    return redirect(url_for("show_results", query=query, results=results))
 
 @app.route("/results")
 def show_results():
@@ -122,10 +124,7 @@ def show_results():
     if not query:
         return redirect(url_for("index"))
 
-    # Obtém os resultados salvos pelo spider
-    file_path = os.path.join(os.getcwd(), "data", f"{query}.json")
-    with open(file_path, "r") as f:
-        results = json.load(f)
+    results = request.args.get("results")
 
     # Salva os resultados no MongoDB
     client = MongoClient(os.environ.get("MONGODB_URI"))
@@ -133,6 +132,14 @@ def show_results():
     collection = db[os.environ.get("MONGODB_COLLECTION")]
     collection.insert_many(results)
 
+    return render_template("results.html", query=query, results=results)
+
+# Salva os resultados no MongoDB, se houver credenciais disponíveis
+if "MONGODB_URI" in os.environ and "MONGODB_DATABASE" in os.environ and "MONGODB_COLLECTION" in os.environ:
+    client = MongoClient(os.environ["MONGODB_URI"])
+    db = client[os.environ["MONGODB_DATABASE"]]
+    collection = db[os.environ["MONGODB_COLLECTION"]]
+    collection.insert_many(results)
     return render_template("results.html", query=query, results=results)
 
 if __name__ == "__main__":
