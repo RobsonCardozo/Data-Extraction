@@ -1,9 +1,8 @@
 import os
 import sys
-from distutils import debug
-from scripts.scraping import run_spider
 from flask import Flask, render_template, send_from_directory
 from pymongo import MongoClient
+from scripts.scraping import run_spider
 
 app = Flask(__name__)
 
@@ -16,6 +15,14 @@ def index():
     client = MongoClient("mongodb://localhost:27017/")
     db = client['wikipedia']
     collection = db['baseconhecimento']
+
+    if collection.count_documents({}) == 0:
+        collection.insert_one({
+            'title': '',
+            'summary': '',
+            'url': ''
+        })
+
     results = []
     for item in collection.find():
         results.append({
@@ -26,5 +33,5 @@ def index():
     return render_template('index.html', results=results)
 
 if __name__ == '__main__':
-    app.run(debug=True)
     run_spider()
+    app.run(debug=True)
