@@ -24,3 +24,5 @@ class WikipediaSpiderPipeline:
     def process_item(self, item, spider):
         self.db[self.collection_name].insert_one(dict(item))
         return item
+
+__all__ = ["WikipediaSpiderPipeline"]

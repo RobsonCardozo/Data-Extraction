@@ -6,7 +6,7 @@ NEWSPIDER_MODULE = 'wikipedia_scraper.spiders'
 ROBOTSTXT_OBEY = True
 
 ITEM_PIPELINES = {
-    'wikipedia_scraper.pipelines.WikipediaSpiderPipeline': 300,
+    "pipelines.WikipediaSpiderPipeline": 300,
 }
 
 MONGODB_URI = "mongodb://localhost:27017/"
