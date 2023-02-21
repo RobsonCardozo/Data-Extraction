@@ -1,18 +1,12 @@
 import os
-import requests
 import json
-from flask import (
-    Flask,
-    render_template,
-    send_from_directory,
-    redirect,
-    url_for,
-    request,
-)
-from pymongo import MongoClient
-import scrapy
+import requests
+
+from flask import Flask, render_template, send_from_directory, redirect, url_for, request
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
+from pymongo import MongoClient
+import scrapy
 
 
 class WikipediaSpider(scrapy.Spider):
@@ -29,19 +23,18 @@ class WikipediaSpider(scrapy.Spider):
         title = response.css("h1#firstHeading::text").get().strip()
         summary = response.css("div#mw-content-text p::text").get().strip()
 
-        # Consulta a API da Wikipedia para obter informações adicionais sobre o título
-        api_response = requests.get(
-            "https://en.wikipedia.org/w/api.php",
-            params={
-                "action": "query",
-                "format": "json",
-                "prop": "extracts|info",
-                "titles": title,
-                "exsentences": 2,
-                "explaintext": True,
-                "inprop": "url",
-            },
-        ).json()
+        # Query Wikipedia API for additional information about the title
+        api_url = "https://en.wikipedia.org/w/api.php"
+        params = {
+            "action": "query",
+            "format": "json",
+            "prop": "extracts|info",
+            "titles": title,
+            "exsentences": 2,
+            "explaintext": True,
+            "inprop": "url",
+        }
+        api_response = requests.get(api_url, params=params).json()
 
         page = next(iter(api_response["query"]["pages"].values()))
         url = page["fullurl"]
@@ -49,13 +42,12 @@ class WikipediaSpider(scrapy.Spider):
         record = {"title": title, "summary": summary, "url": url, "query": self.query}
         self.records.append(record)
 
-        # Salva os resultados em um arquivo JSON
+    def closed(self, reason):
+        # Save results to a JSON file
         file_path = os.path.join(os.getcwd(), "data", f"{self.query}.json")
         with open(file_path, "w") as f:
             json.dump(self.records, f)
 
-    def closed(self, reason):
-        pass
 
 app = Flask(__name__)
 
@@ -68,11 +60,9 @@ def favicon():
         mimetype="image/vnd.microsoft.icon",
     )
 
-
 @app.route("/")
 def index():
     return render_template("index.html")
-
 
 @app.route("/search")
 def search():
@@ -80,14 +70,24 @@ def search():
     if not query:
         return redirect(url_for("index"))
 
-    # Executa o spider para buscar os dados
-    process = CrawlerProcess(get_project_settings())
+    # Run the spider to fetch data
     spider = WikipediaSpider(query=query)
+    process = CrawlerProcess(get_project_settings())
     process.crawl(spider)
     process.start()
 
-    # Redireciona para a página de resultados
+    # Redirect to the results page
     return redirect(url_for("show_results", query=query))
+
+@app.route("/results/<query>")
+def show_results(query):
+    # Load results from the JSON file
+    file_path = os.path.join(os.getcwd(), "data", f"{query}.json")
+    with open(file_path, "r") as f:
+        records = json.load(f)
+
+    return render_template("results.html", records=records)
+
 
 if __name__ == "__main__":
     app.run(debug=True)
