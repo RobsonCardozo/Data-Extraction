@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Resultados da Busca</title>
+  </head>
+  <body>
+    <h1>Resultados da Busca</h1>
+    <p>Resultados da busca por: {{ query }}</p>
+    <ul>
+      {% for result in results %}
+        <li>
+          <a href="{{ result.url }}" target="_blank">{{ result.title }}</a>
+          <p>{{ result.summary }}</p>
+        </li>
+      {% endfor %}
+    </ul>
+    <a href="/">Voltar para a página inicial</a>
+  </body>
+</html>
