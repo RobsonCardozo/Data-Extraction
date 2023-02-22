@@ -14,15 +14,10 @@ class WikipediaSpiderPipeline:
             mongo_db=crawler.settings.get('MONGODB_DATABASE')
         )
 
-    def open_spider(self, spider):
-        self.client = pymongo.MongoClient(self.mongo_uri)
-        self.db = self.client[self.mongo_db]
-
-    def close_spider(self, spider):
-        self.client.close()
-
     def process_item(self, item, spider):
-        self.db[self.collection_name].insert_one(dict(item))
+        with pymongo.MongoClient(self.mongo_uri) as client:
+            db = client[self.mongo_db]
+            db[self.collection_name].insert_one(dict(item))
         return item
 
 __all__ = ["WikipediaSpiderPipeline"]

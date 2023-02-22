@@ -20,9 +20,9 @@
         <tbody>
           {% for result in results %}
           <tr>
-            <td>{{ result['title'] }}</td>
-            <td>{{ result['summary'] }}</td>
-            <td><a href="{{ result['url'] }}" target="_blank">{{ result['url'] }}</a></td>
+            <td>{{ result.title }}</td>
+            <td>{{ result.summary }}</td>
+            <td><a href="{{ result.url }}" target="_blank">{{ result.url }}</a></td>
           </tr>
           {% endfor %}
         </tbody>
