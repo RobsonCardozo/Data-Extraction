@@ -1,25 +1,14 @@
 import os
-import sys
-
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))
-
 import requests
 import json
-from flask import (
-    Flask,
-    render_template,
-    send_from_directory,
-    redirect,
-    url_for,
-    request,
-)
+
+from flask import Flask, render_template, send_from_directory, redirect, url_for, request
 from pymongo import MongoClient
-import scrapy
+from scrapy import Spider
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
-from scrapy import cmdline
 
-# Define o pipeline do scrapy para salvar em JSON
+
 class WikipediaSpiderPipeline:
     def open_spider(self, spider):
         self.records = []
@@ -33,21 +22,17 @@ class WikipediaSpiderPipeline:
         self.records.append(dict(item))
         return item
 
-# Define o spider do scrapy para extrair informações da Wikipedia
-class WikipediaSpider(scrapy.Spider):
+
+class WikipediaSpider(Spider):
     name = "wikipedia"
     allowed_domains = ["en.wikipedia.org"]
-    start_urls = ["https://en.wikipedia.org/wiki/Main_Page"]
-
-    custom_settings = {
-        "ITEM_PIPELINES": {
-            "WikipediaSpiderPipeline": 300,
-        }
-    }
 
     def __init__(self, query=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.query = query
+        self.start_urls = [f"https://en.wikipedia.org/wiki/{query}"]
+
+    custom_settings = {"ITEM_PIPELINES": {"WikipediaSpiderPipeline": 300}}
 
     def parse(self, response):
         title = response.css("h1#firstHeading::text").get().strip()
@@ -70,13 +55,9 @@ class WikipediaSpider(scrapy.Spider):
         page = next(iter(api_response["query"]["pages"].values()))
         url = page["fullurl"]
 
-        item = {
-            "title": title,
-            "summary": summary,
-            "url": url,
-            "query": self.query,
-        }
+        item = {"title": title, "summary": summary, "url": url, "query": self.query}
         yield item
+
 
 app = Flask(__name__)
 
@@ -89,9 +70,11 @@ def favicon():
         mimetype="image/vnd.microsoft.icon",
     )
 
+
 @app.route("/")
 def index():
     return render_template("index.html")
+
 
 @app.route("/search")
 def search():
@@ -110,13 +93,12 @@ def search():
     db = client["wikipedia"]
     collection = db["pages"]
 
-    results = []
-    for record in spider.records:
-        results.append(record)
-        collection.insert_one(record)
+    results = list(spider.records)
+    collection.insert_many(results)
 
     # Redireciona para a página de resultados
-    return redirect(url_for("show_results", query=query, results=results))
+    return redirect(url_for("show_results", query=query))
+
 
 @app.route("/results")
 def show_results():
@@ -124,23 +106,15 @@ def show_results():
     if not query:
         return redirect(url_for("index"))
 
-    results = request.args.get("results")
+    # Obtém os resultados do MongoDB
+    client = MongoClient("mongodb://localhost:27017/")
+    db = client["wikipedia"]
+    collection = db["pages"]
 
-    # Salva os resultados no MongoDB
-    client = MongoClient(os.environ.get("MONGODB_URI"))
-    db = client[os.environ.get("MONGODB_DATABASE")]
-    collection = db[os.environ.get("MONGODB_COLLECTION")]
-    collection.insert_many(results)
+    results = list(collection.find({"query": query}))
 
     return render_template("results.html", query=query, results=results)
 
-# Salva os resultados no MongoDB, se houver credenciais disponíveis
-if "MONGODB_URI" in os.environ and "MONGODB_DATABASE" in os.environ and "MONGODB_COLLECTION" in os.environ:
-    client = MongoClient(os.environ["MONGODB_URI"])
-    db = client[os.environ["MONGODB_DATABASE"]]
-    collection = db[os.environ["MONGODB_COLLECTION"]]
-    collection.insert_many(results)
-    return render_template("results.html", query=query, results=results)
 
 if __name__ == "__main__":
     app.run(debug=True)
