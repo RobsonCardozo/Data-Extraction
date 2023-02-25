@@ -1,2 +1,2 @@
 # Data-Extraction
-Python, Flask, Scrapy & MongoDB
+Flask, Scrapy, Pymongo.
